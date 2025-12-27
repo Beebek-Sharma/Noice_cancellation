@@ -1,0 +1,744 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Noise Suppression (WebRTC)</title>
+    <style>
+      :root {
+        --fg: #24292f;
+        --muted: #57606a;
+        --bg: #f6f8fa;
+        --panel: #ffffff;
+        --border: #d0d7de;
+        --shadow: 0 1px 0 rgba(31, 35, 40, 0.04);
+        --radius: 12px;
+
+        --btn-fg: #24292f;
+        --btn-bg: #f6f8fa;
+        --btn-border: #d0d7de;
+        --btn-hover: #eef1f4;
+
+        --btn-primary-fg: #ffffff;
+        --btn-primary-bg: #1f883d;
+        --btn-primary-hover: #1a7f37;
+        --btn-primary-border: rgba(31, 35, 40, 0.15);
+
+        --focus: 0 0 0 3px rgba(9, 105, 218, 0.25);
+      }
+
+      * { box-sizing: border-box; }
+      html, body { height: 100%; }
+      body {
+        margin: 0;
+        font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+        color: var(--fg);
+        background: var(--bg);
+      }
+
+      .page {
+        padding: 24px;
+        display: flex;
+        justify-content: center;
+      }
+
+      .container {
+        width: 100%;
+        max-width: 980px;
+      }
+
+      .pagehead {
+        background: var(--panel);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        box-shadow: var(--shadow);
+        padding: 16px;
+        margin-bottom: 16px;
+      }
+      .breadcrumbs {
+        font-size: 12px;
+        color: var(--muted);
+        margin: 0 0 8px;
+      }
+      .title {
+        margin: 0;
+        font-size: 22px;
+        font-weight: 650;
+        letter-spacing: -0.01em;
+      }
+      .subtitle {
+        margin: 6px 0 0;
+        color: var(--muted);
+        font-size: 13px;
+        line-height: 1.4;
+      }
+
+      .card {
+        background: var(--panel);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        box-shadow: var(--shadow);
+        padding: 16px;
+      }
+
+      .grid { display: grid; gap: 12px; }
+
+      .row {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+        align-items: center;
+      }
+
+      .settings {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 16px;
+      }
+      @media (min-width: 860px) {
+        .settings {
+          grid-template-columns: 260px 1fr;
+          align-items: start;
+        }
+      }
+
+      .sidebar {
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        background: var(--panel);
+        box-shadow: var(--shadow);
+        padding: 10px;
+      }
+      .sidebar-title {
+        font-size: 12px;
+        font-weight: 700;
+        color: var(--muted);
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        margin: 6px 10px 10px;
+      }
+      .nav {
+        display: grid;
+        gap: 4px;
+      }
+      .nav a {
+        text-decoration: none;
+        color: var(--fg);
+        font-size: 13px;
+        padding: 8px 10px;
+        border-radius: 8px;
+        border: 1px solid transparent;
+      }
+      .nav a:hover {
+        background: var(--bg);
+        border-color: var(--border);
+      }
+
+      .panel {
+        background: var(--panel);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 12px;
+      }
+
+      .panel-title {
+        font-weight: 600;
+        font-size: 13px;
+        margin: 0 0 8px;
+      }
+
+      .section-head {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 12px;
+        margin-bottom: 8px;
+      }
+      .section-head h2 {
+        margin: 0;
+        font-size: 14px;
+        font-weight: 650;
+      }
+      .section-head .hint {
+        font-size: 12px;
+        color: var(--muted);
+      }
+
+      .form {
+        display: grid;
+        gap: 10px;
+      }
+      .field {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 6px;
+        padding: 10px;
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        background: #fff;
+      }
+      @media (min-width: 860px) {
+        .field {
+          grid-template-columns: 230px 1fr;
+          align-items: center;
+          gap: 12px;
+        }
+      }
+      .field .label {
+        font-weight: 600;
+        font-size: 13px;
+      }
+      .field .desc {
+        color: var(--muted);
+        font-size: 12px;
+        margin-top: 3px;
+      }
+      .field .control {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: flex-start;
+      }
+
+      .help {
+        color: var(--muted);
+        font-size: 12px;
+        line-height: 1.4;
+        margin: 6px 0 0;
+      }
+
+      .btn {
+        appearance: none;
+        border: 1px solid var(--btn-border);
+        background: var(--btn-bg);
+        color: var(--btn-fg);
+        border-radius: 8px;
+        padding: 8px 12px;
+        font-weight: 600;
+        font-size: 13px;
+        cursor: pointer;
+      }
+      .btn:hover { background: var(--btn-hover); }
+      .btn:focus { outline: none; box-shadow: var(--focus); }
+      .btn:disabled { opacity: 0.6; cursor: not-allowed; }
+
+      .btn-primary {
+        border-color: var(--btn-primary-border);
+        background: var(--btn-primary-bg);
+        color: var(--btn-primary-fg);
+      }
+      .btn-primary:hover { background: var(--btn-primary-hover); }
+
+      label {
+        font-size: 13px;
+        color: var(--fg);
+      }
+
+      input[type="checkbox"] { transform: translateY(1px); }
+
+      select,
+      input[type="range"] {
+        accent-color: #0969da;
+      }
+
+      select {
+        padding: 6px 8px;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        background: var(--panel);
+        color: var(--fg);
+      }
+      select:focus { outline: none; box-shadow: var(--focus); }
+
+      .mono {
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+        font-size: 12px;
+      }
+      pre {
+        margin: 0;
+        padding: 12px;
+        background: var(--bg);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        overflow: auto;
+      }
+
+      audio {
+        width: 100%;
+      }
+
+      details summary {
+        cursor: pointer;
+        user-select: none;
+        color: var(--muted);
+        font-size: 13px;
+      }
+    </style>
+  </head>
+  <body>
+    <main class="page">
+      <div class="container">
+        <header class="pagehead">
+          <p class="breadcrumbs">Noise_cancellation / WebRTC</p>
+          <h1 class="title">Noise suppression</h1>
+          <p class="subtitle">
+            WebRTC built-in audio processing (noise suppression / echo cancellation / AGC) with a local loopback. Use headphones to avoid
+            acoustic feedback; tune settings like a GitHub settings page.
+          </p>
+          <div class="row" style="margin-top: 12px;">
+            <button id="start" class="btn btn-primary">Start</button>
+            <button id="stop" class="btn" disabled>Stop</button>
+          </div>
+        </header>
+
+        <section class="settings">
+          <aside class="sidebar">
+            <div class="sidebar-title">Settings</div>
+            <nav class="nav">
+              <a href="#processing">Processing</a>
+              <a href="#monitoring">Monitoring</a>
+              <a href="#debug">Debug</a>
+            </nav>
+          </aside>
+
+          <div class="grid">
+            <section id="processing" class="panel">
+              <div class="section-head">
+                <h2>Processing</h2>
+                <div class="hint">Affects capture + WebRTC loopback</div>
+              </div>
+              <div class="form">
+                <div class="field">
+                  <div>
+                    <div class="label">Noise suppression</div>
+                    <div class="desc">Reduces steady background noise. Not a multi-speaker separator.</div>
+                  </div>
+                  <div class="control">
+                    <label><input id="optNS" type="checkbox" checked /> Enabled</label>
+                  </div>
+                </div>
+
+                <div class="field">
+                  <div>
+                    <div class="label">Echo cancellation</div>
+                    <div class="desc">Best with headphones; speakers can cause feedback/echo.</div>
+                  </div>
+                  <div class="control">
+                    <select id="optAECMode">
+                      <option value="all" selected>all</option>
+                      <option value="remote-only">remote-only</option>
+                      <option value="true">on</option>
+                      <option value="false">off</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div class="field">
+                  <div>
+                    <div class="label">Auto gain control (AGC)</div>
+                    <div class="desc">Can increase background chatter; keep off unless needed.</div>
+                  </div>
+                  <div class="control">
+                    <label><input id="optAGC" type="checkbox" /> Enabled</label>
+                  </div>
+                </div>
+
+                <div class="field">
+                  <div>
+                    <div class="label">Chromium advanced</div>
+                    <div class="desc">Non-standard, non-ML hints (Brave/Chrome). Might help slightly.</div>
+                  </div>
+                  <div class="control">
+                    <label><input id="optChromiumAdvanced" type="checkbox" /> Enabled</label>
+                  </div>
+                </div>
+
+                <div class="field">
+                  <div>
+                    <div class="label">Noise gate</div>
+                    <div class="desc">Cuts residual noise between words (non-ML). Tune threshold carefully.</div>
+                  </div>
+                  <div class="control">
+                    <label><input id="optGate" type="checkbox" /> Enabled</label>
+                    <label>
+                      Threshold
+                      <input id="optGateDb" type="range" min="-60" max="-20" step="1" value="-45" />
+                      <span id="optGateDbLabel" class="mono">-45 dB</span>
+                    </label>
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            <section id="monitoring" class="panel">
+              <div class="section-head">
+                <h2>Monitoring</h2>
+                <div class="hint">Affects playback only</div>
+              </div>
+              <div class="form">
+                <div class="field">
+                  <div>
+                    <div class="label">Low-latency monitor (WebAudio)</div>
+                    <div class="desc">Reduces buffering delay vs &lt;audio&gt;.</div>
+                  </div>
+                  <div class="control">
+                    <label><input id="optWebAudio" type="checkbox" checked /> Enabled</label>
+                  </div>
+                </div>
+
+                <div class="field">
+                  <div>
+                    <div class="label">Monitor output</div>
+                    <div class="desc">If you hear echo, lower volume or use headphones.</div>
+                  </div>
+                  <div class="control">
+                    <audio id="monitor" controls autoplay></audio>
+                  </div>
+                </div>
+
+                <div class="field">
+                  <div>
+                    <div class="label">Volume / Mute</div>
+                    <div class="desc">When WebAudio monitoring is enabled, &lt;audio&gt; is muted to avoid double playback.</div>
+                  </div>
+                  <div class="control">
+                    <label>
+                      Volume
+                      <input id="optVolume" type="range" min="0" max="1" step="0.01" value="0.2" />
+                      <span id="optVolumeLabel" class="mono">0.20</span>
+                    </label>
+                    <label><input id="optMute" type="checkbox" /> mute</label>
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            <section id="debug" class="panel">
+              <div class="section-head">
+                <h2>Debug</h2>
+                <div class="hint">Track settings / constraints</div>
+              </div>
+              <details>
+                <summary>Status (debug JSON)</summary>
+                <pre id="status" class="mono">Idle</pre>
+              </details>
+            </section>
+          </div>
+        </section>
+      </div>
+    </main>
+
+    <script>
+      /** @type {MediaStream|null} */
+      let micStream = null;
+      /** @type {RTCPeerConnection|null} */
+      let pc1 = null;
+      /** @type {RTCPeerConnection|null} */
+      let pc2 = null;
+      /** @type {AudioContext|null} */
+      let audioCtx = null;
+      /** @type {MediaStreamAudioSourceNode|null} */
+      let webAudioSource = null;
+      /** @type {AudioWorkletNode|null} */
+      let gateNode = null;
+
+      const startBtn = document.getElementById('start');
+      const stopBtn = document.getElementById('stop');
+      const audioEl = document.getElementById('monitor');
+      const statusEl = document.getElementById('status');
+      const optNS = document.getElementById('optNS');
+      const optAECMode = document.getElementById('optAECMode');
+      const optAGC = document.getElementById('optAGC');
+      const optChromiumAdvanced = document.getElementById('optChromiumAdvanced');
+      const optWebAudio = document.getElementById('optWebAudio');
+      const optGate = document.getElementById('optGate');
+      const optGateDb = document.getElementById('optGateDb');
+      const optGateDbLabel = document.getElementById('optGateDbLabel');
+      const optVolume = document.getElementById('optVolume');
+      const optVolumeLabel = document.getElementById('optVolumeLabel');
+      const optMute = document.getElementById('optMute');
+
+      function applyMonitorControls() {
+        const v = Number(optVolume.value);
+        audioEl.volume = Number.isFinite(v) ? v : 0.2;
+        audioEl.muted = !!optMute.checked;
+        optVolumeLabel.textContent = audioEl.volume.toFixed(2);
+      }
+
+      optVolume.addEventListener('input', applyMonitorControls);
+      optMute.addEventListener('change', applyMonitorControls);
+      applyMonitorControls();
+
+      function updateGateLabel() {
+        optGateDbLabel.textContent = `${optGateDb.value} dB`;
+      }
+      optGateDb.addEventListener('input', updateGateLabel);
+      updateGateLabel();
+
+      async function ensureWebAudio() {
+        if (audioCtx) return;
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)({ latencyHint: 'interactive' });
+
+        // Inline AudioWorklet for a simple RMS-based noise gate.
+        const workletSource = `
+          class NoiseGateProcessor extends AudioWorkletProcessor {
+            static get parameterDescriptors() {
+              return [
+                { name: 'threshold', defaultValue: 0.005, minValue: 0.00001, maxValue: 1.0 },
+                { name: 'enabled', defaultValue: 0, minValue: 0, maxValue: 1 },
+              ];
+            }
+            constructor() {
+              super();
+              this._env = 0;
+              this._gain = 1;
+            }
+            process(inputs, outputs, parameters) {
+              const input = inputs[0];
+              const output = outputs[0];
+              if (!input || input.length === 0) return true;
+
+              const inCh = input[0];
+              const outCh = output[0];
+              const enabledArr = parameters.enabled;
+              const thresholdArr = parameters.threshold;
+
+              // ~10ms smoothing at 48kHz
+              const attack = 0.01;
+              const release = 0.05;
+
+              for (let i = 0; i < inCh.length; i++) {
+                const enabled = enabledArr.length > 1 ? enabledArr[i] : enabledArr[0];
+                const threshold = thresholdArr.length > 1 ? thresholdArr[i] : thresholdArr[0];
+                const x = inCh[i];
+
+                // Envelope follower (abs)
+                const absx = Math.abs(x);
+                const coeff = absx > this._env ? attack : release;
+                this._env = this._env + coeff * (absx - this._env);
+
+                if (enabled >= 0.5) {
+                  // Gate: hard-ish with smoothing on gain
+                  const target = this._env >= threshold ? 1.0 : 0.0;
+                  const gCoeff = target > this._gain ? 0.05 : 0.02;
+                  this._gain = this._gain + gCoeff * (target - this._gain);
+                  outCh[i] = x * this._gain;
+                } else {
+                  outCh[i] = x;
+                }
+              }
+              return true;
+            }
+          }
+          registerProcessor('noise-gate', NoiseGateProcessor);
+        `;
+
+        const blobUrl = URL.createObjectURL(new Blob([workletSource], { type: 'text/javascript' }));
+        await audioCtx.audioWorklet.addModule(blobUrl);
+        URL.revokeObjectURL(blobUrl);
+
+        gateNode = new AudioWorkletNode(audioCtx, 'noise-gate', { numberOfInputs: 1, numberOfOutputs: 1, outputChannelCount: [1] });
+      }
+
+      function dbToLinear(db) {
+        return Math.pow(10, db / 20);
+      }
+
+      async function connectInboundToOutput(inboundStream) {
+        // Always attach to <audio> as a fallback / for user controls.
+        audioEl.srcObject = inboundStream;
+        applyMonitorControls();
+
+        if (!optWebAudio.checked) {
+          audioEl.play().catch(() => {});
+          return;
+        }
+
+        await ensureWebAudio();
+        await audioCtx.resume().catch(() => {});
+
+        // Disconnect previous graph.
+        try { if (webAudioSource) webAudioSource.disconnect(); } catch {}
+        try { if (gateNode) gateNode.disconnect(); } catch {}
+
+        webAudioSource = audioCtx.createMediaStreamSource(inboundStream);
+
+        // Keep <audio> muted when using WebAudio output to avoid double playback.
+        audioEl.muted = true;
+
+        const gateEnabled = optGate.checked ? 1 : 0;
+        const threshold = dbToLinear(Number(optGateDb.value));
+        gateNode.parameters.get('enabled').setValueAtTime(gateEnabled, audioCtx.currentTime);
+        gateNode.parameters.get('threshold').setValueAtTime(threshold, audioCtx.currentTime);
+
+        if (optGate.checked) {
+          webAudioSource.connect(gateNode).connect(audioCtx.destination);
+        } else {
+          webAudioSource.connect(audioCtx.destination);
+        }
+      }
+
+      optWebAudio.addEventListener('change', () => {
+        // Allow switching without restarting: just update mute state.
+        if (!optWebAudio.checked) {
+          audioEl.muted = !!optMute.checked;
+        } else {
+          audioEl.muted = true;
+        }
+      });
+
+      function updateGateParamsLive() {
+        if (!audioCtx || !gateNode) return;
+        gateNode.parameters.get('enabled').setValueAtTime(optGate.checked ? 1 : 0, audioCtx.currentTime);
+        gateNode.parameters.get('threshold').setValueAtTime(dbToLinear(Number(optGateDb.value)), audioCtx.currentTime);
+      }
+      optGate.addEventListener('change', updateGateParamsLive);
+      optGateDb.addEventListener('input', updateGateParamsLive);
+
+      function setStatus(obj) {
+        statusEl.textContent = typeof obj === 'string' ? obj : JSON.stringify(obj, null, 2);
+      }
+
+      async function start() {
+        if (!navigator.mediaDevices?.getUserMedia) {
+          setStatus('Error: getUserMedia is not available in this browser context. Use a modern Chromium/Firefox and allow microphone access.');
+          return;
+        }
+
+        if (!window.RTCPeerConnection) {
+          setStatus('Error: RTCPeerConnection is not available in this browser context.');
+          return;
+        }
+
+        setStatus('Requesting microphone…');
+
+        // WebRTC built-in audio processing.
+        // Note: support can vary by OS/browser/device driver.
+        // Brave/Chromium sometimes exposes extended echoCancellation modes.
+        // We'll request the selected mode using "ideal" and let the browser negotiate.
+        const aecModeRaw = String(optAECMode.value);
+        const aecIdeal = (aecModeRaw === 'true') ? true : (aecModeRaw === 'false') ? false : aecModeRaw;
+
+        const constraints = {
+          audio: {
+            // Use "ideal" so the browser can negotiate if it's supported.
+            // Default AGC OFF: it can pump up background chatter.
+            echoCancellation: { ideal: aecIdeal },
+            noiseSuppression: { ideal: !!optNS.checked },
+            autoGainControl: { ideal: !!optAGC.checked },
+            channelCount: 1,
+
+            // Chromium-only knobs (not part of the standard constraints).
+            // These are best-effort hints; Brave may apply some of them.
+            ...(optChromiumAdvanced.checked
+              ? {
+                  googEchoCancellation: true,
+                  googEchoCancellation2: true,
+                  googNoiseSuppression: true,
+                  googNoiseSuppression2: true,
+                  googHighpassFilter: true,
+                  googTypingNoiseDetection: true,
+                  googAudioMirroring: false,
+                }
+              : {}),
+          },
+          video: false,
+        };
+
+        micStream = await navigator.mediaDevices.getUserMedia(constraints);
+        const track = micStream.getAudioTracks()[0];
+
+        // Create a local loopback call: pc1 sends mic → pc2 receives → play received track.
+        // Keep config minimal; no STUN/TURN needed for local loopback.
+        pc1 = new RTCPeerConnection({ iceServers: [] });
+        pc2 = new RTCPeerConnection({ iceServers: [] });
+
+        pc1.onicecandidate = (e) => {
+          if (e.candidate) pc2.addIceCandidate(e.candidate).catch(() => {});
+        };
+        pc2.onicecandidate = (e) => {
+          if (e.candidate) pc1.addIceCandidate(e.candidate).catch(() => {});
+        };
+
+        pc2.ontrack = (e) => {
+          const inbound = e.streams && e.streams[0] ? e.streams[0] : new MediaStream([e.track]);
+          connectInboundToOutput(inbound).catch(() => {});
+        };
+
+        for (const t of micStream.getTracks()) {
+          pc1.addTrack(t, micStream);
+        }
+
+        const offer = await pc1.createOffer({ offerToReceiveAudio: true, offerToReceiveVideo: false });
+        await pc1.setLocalDescription(offer);
+        await pc2.setRemoteDescription(offer);
+
+        const answer = await pc2.createAnswer();
+        await pc2.setLocalDescription(answer);
+        await pc1.setRemoteDescription(answer);
+
+        startBtn.disabled = true;
+        stopBtn.disabled = false;
+
+        // Helpful diagnostics: Brave sometimes reports capability support clearly here.
+        const caps = typeof track.getCapabilities === 'function' ? track.getCapabilities() : null;
+
+        setStatus({
+          requestedConstraints: constraints.audio,
+          capabilities: caps,
+          appliedTrackSettings: track.getSettings(),
+          appliedTrackConstraints: track.getConstraints(),
+          note: [
+            'If capabilities/settings do not include noiseSuppression/echoCancellation, Brave/OS may not support them for this device.',
+            'Also: WebRTC NS cannot remove another nearby speaker reliably (that is not "noise"; it is competing speech).',
+            'For echo/feedback during monitoring: use headphones or mute the monitor; speakers will re-enter the mic and sound like echo.',
+            'Try with autoGainControl OFF and echoCancellation=all.',
+            'If there is still a small amount of residual noise, try enabling "Chromium advanced".',
+            'If you hear monitoring delay: enable "Low-latency monitor (WebAudio)" and keep monitor volume low.',
+            'If residual hiss remains mainly between words: try enabling "Noise gate" and adjust threshold (e.g. -45 dB to -35 dB).',
+          ].join('\n'),
+        });
+      }
+
+      function stop() {
+        try {
+          if (pc1) pc1.close();
+          if (pc2) pc2.close();
+        } finally {
+          pc1 = null;
+          pc2 = null;
+        }
+
+        try {
+          if (webAudioSource) webAudioSource.disconnect();
+        } catch {}
+        webAudioSource = null;
+
+        try {
+          if (gateNode) gateNode.disconnect();
+        } catch {}
+        gateNode = null;
+
+        if (audioCtx) {
+          // Close to release audio device.
+          audioCtx.close().catch(() => {});
+        }
+        audioCtx = null;
+
+        if (micStream) {
+          for (const t of micStream.getTracks()) t.stop();
+          micStream = null;
+        }
+        audioEl.srcObject = null;
+        audioEl.muted = false;
+        startBtn.disabled = false;
+        stopBtn.disabled = true;
+        setStatus('Stopped');
+      }
+
+      startBtn.addEventListener('click', () => start().catch((err) => setStatus({ error: String(err), stack: err?.stack })));
+      stopBtn.addEventListener('click', stop);
+    </script>
+  </body>
+</html>
